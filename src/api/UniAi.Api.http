@@ -1,0 +1,6 @@
+@UniAi.Api_HostAddress = http://localhost:5008
+
+GET {{UniAi.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

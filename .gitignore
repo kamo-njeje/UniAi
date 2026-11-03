@@ -1,0 +1,37 @@
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+secrets.json
+appsettings.Local.json
+**/.dotnet-home/
+**/.npm-cache/
+**/.nuget-packages/
+/.build/
+
+# Node / React
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+
+# Local databases, uploads, and generated data
+*.mdf
+*.ldf
+*.db
+*.sqlite*
+/storage/
+/uploads/
+
+# Editors and operating system
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
