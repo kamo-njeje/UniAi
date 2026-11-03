@@ -77,7 +77,7 @@ app.MapPost("/api/study/generate", async (
     {
         return Results.Problem(
             title: "AI provider not configured",
-            detail: "Set OPENAI_API_KEY in the API process before generating study material.",
+            detail: generator.ConfigurationHint,
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 
@@ -147,6 +147,7 @@ app.MapPost("/api/study/generate", async (
             null => "The API could not reach OpenAI or could not read its response. Check your internet connection and try again.",
             _ => "The OpenAI request failed (HTTP " + exception.StatusCode + "). Check the API key, billing, and project access."
         };
+        detail = detail.Replace("OpenAI", generator.ProviderName);
         return Results.Problem(
             title: "Study material could not be generated",
             detail: detail,

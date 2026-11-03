@@ -9,7 +9,7 @@ public class ApiEndpointTests(WebApplicationFactory<Program> factory) : IClassFi
     // Make sure a real key on the developer machine never leaks into tests.
     private HttpClient Client() => factory
         .WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(new Dictionary<string, string?> { ["OPENAI_API_KEY"] = "" })))
+            config.AddInMemoryCollection(new Dictionary<string, string?> { ["OPENAI_API_KEY"] = "", ["AI:Provider"] = "openai" })))
         .CreateClient();
 
     [Fact]
@@ -44,7 +44,7 @@ public class ApiEndpointTests(WebApplicationFactory<Program> factory) : IClassFi
         // A key must be present to get past the 503 check, so set a dummy one for this test only.
         var client = factory
             .WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
-                config.AddInMemoryCollection(new Dictionary<string, string?> { ["OPENAI_API_KEY"] = "dummy" })))
+                config.AddInMemoryCollection(new Dictionary<string, string?> { ["OPENAI_API_KEY"] = "dummy", ["AI:Provider"] = "openai" })))
             .CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/study/generate")
         {

@@ -46,6 +46,10 @@ finally {
 }
 ```
 
+## Choose an AI provider
+
+Set `AI__Provider` to `openai` (default), `gemini` or `groq`, plus that provider's key (`OPENAI_API_KEY`, `GEMINI_API_KEY` or `GROQ_API_KEY`). Models can be changed with `OpenAI:Model`, `Gemini:Model` and `Groq:Model`. Summary and quiz work with all three; "Broaden my knowledge" (web search) currently needs OpenAI. Free tiers have rate limits, and Google's free tier may use submitted content to improve its products, so use only synthetic or non-sensitive files with it.
+
 ## Working principles
 
 1. Build and review one small feature at a time.
