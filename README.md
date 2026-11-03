@@ -50,6 +50,10 @@ finally {
 
 Set `AI__Provider` to `openai` (default), `gemini` or `groq`, plus that provider's key (`OPENAI_API_KEY`, `GEMINI_API_KEY` or `GROQ_API_KEY`). Models can be changed with `OpenAI:Model`, `Gemini:Model` and `Groq:Model`. Summary and quiz work with all three; "Broaden my knowledge" (web search) currently needs OpenAI. Free tiers have rate limits, and Google's free tier may use submitted content to improve its products, so use only synthetic or non-sensitive files with it.
 
+## Usage limits
+
+The API protects the free AI quota with caps set in `src/api/appsettings.json` under `Limits`: a per-IP burst limit, daily limits per browser and per IP, and global per-minute and per-day caps. The defaults assume a quota of 15 requests per minute and 500 per day. Set the global values to about 80% of your own provider quota. Counts are in memory, reset at midnight UTC and are lost on restart. The browser keeps a random ID in `localStorage` to count its own usage; list it in the privacy notice.
+
 ## Working principles
 
 1. Build and review one small feature at a time.

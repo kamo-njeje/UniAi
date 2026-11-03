@@ -28,18 +28,40 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Fast per-IP burst limit. Daily and global caps live in UsageLimiter.
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("study-generation", limiter =>
+    options.AddPolicy("study-generation", httpContext =>
     {
-        limiter.PermitLimit = 5;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var burst = httpContext.RequestServices.GetRequiredService<IConfiguration>()
+            .GetValue<int?>("Limits:BurstPerIpPerMinute") ?? 3;
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = Math.Max(1, burst),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
     });
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
+        }
+
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            title = "Too many requests",
+            detail = "You are going a little fast. Please wait a minute and try again."
+        }, cancellationToken);
+    };
 });
 
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<UsageLimiter>();
 builder.Services.AddSingleton<DocumentTextExtractor>();
 builder.Services.AddHttpClient<StudyGenerationService>(client =>
 {
@@ -63,6 +85,7 @@ app.MapPost("/api/study/generate", async (
     HttpRequest request,
     DocumentTextExtractor extractor,
     StudyGenerationService generator,
+    UsageLimiter limiter,
     CancellationToken cancellationToken) =>
 {
     request.HttpContext.Response.Headers["Cache-Control"] = "no-store";
@@ -120,6 +143,20 @@ app.MapPost("/api/study/generate", async (
 
         var combinedText = string.Join("\n\n", extractedDocuments.Select(document =>
             $"--- Document: {document.FileName} ---\n{document.Text}"));
+
+        var ip = request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var guestHeader = request.Headers["X-UniAI-Guest"].FirstOrDefault();
+        var guestId = Guid.TryParse(guestHeader, out var parsedGuest) ? parsedGuest.ToString() : null;
+
+        var quota = limiter.TryAcquire(ip, guestId);
+        if (!quota.Allowed)
+        {
+            request.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(quota.RetryAfter.TotalSeconds)).ToString();
+            return Results.Problem(
+                title: "Usage limit reached",
+                detail: quota.Message,
+                statusCode: StatusCodes.Status429TooManyRequests);
+        }
 
         var result = await generator.GenerateAsync(combinedText, mode, depth, cancellationToken);
 

@@ -18,6 +18,19 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5008'
 const modulesStorageKey = 'uniai.guest.modules.v1'
 const startedStorageKey = 'uniai.guest.started.v1'
 const themeStorageKey = 'uniai.theme.v1'
+const guestIdStorageKey = 'uniai.guestId'
+
+function getGuestId(): string {
+  try {
+    const existing = localStorage.getItem(guestIdStorageKey)
+    if (existing) return existing
+    const created = crypto.randomUUID()
+    localStorage.setItem(guestIdStorageKey, created)
+    return created
+  } catch {
+    return crypto.randomUUID()
+  }
+}
 const maxFileSize = 20 * 1024 * 1024
 const supportedExtensions = ['.pdf', '.pptx', '.docx', '.txt']
 
@@ -203,7 +216,7 @@ function App() {
     const timeout = window.setTimeout(() => controller.abort(), 100_000)
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/study/generate`, { method: 'POST', body: form, signal: controller.signal })
+      const response = await fetch(`${apiBaseUrl}/api/study/generate`, { method: 'POST', body: form, headers: { 'X-UniAI-Guest': getGuestId() }, signal: controller.signal })
       const body = await response.json() as { text?: string; citations?: StudyCitation[]; quiz?: StudyQuiz; error?: string; detail?: string; title?: string }
       if (!response.ok) throw new Error(body.detail ?? body.error ?? body.title ?? 'Could not generate study material.')
       setStudyResults((current) => ({ ...current, [moduleId]: { mode, text: body.text ?? '', citations: body.citations ?? [], quiz: body.quiz } }))

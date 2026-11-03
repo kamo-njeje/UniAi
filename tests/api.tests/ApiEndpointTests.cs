@@ -54,4 +54,32 @@ public class ApiEndpointTests(WebApplicationFactory<Program> factory) : IClassFi
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Generate_over_the_burst_limit_returns_a_friendly_429()
+    {
+        var client = factory
+            .WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OPENAI_API_KEY"] = "dummy",
+                    ["AI:Provider"] = "openai",
+                    ["Limits:BurstPerIpPerMinute"] = "2"
+                })))
+            .CreateClient();
+
+        HttpResponseMessage? last = null;
+        for (var i = 0; i < 3; i++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/study/generate")
+            {
+                Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json")
+            };
+            request.Headers.Add("Origin", "http://localhost:5173");
+            last = await client.SendAsync(request);
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, last!.StatusCode);
+        Assert.Contains("detail", await last.Content.ReadAsStringAsync());
+    }
 }
